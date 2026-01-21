@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigiCard - View Card</title>
+    <script>
+        // GitHub Pages doesn't support dynamic routes, so we use 404.html to handle them
+        // This redirects /c/xxx or /card/xxx to index.html with the path preserved
+        const path = window.location.pathname;
+        const cardMatch = path.match(/\/c\/([^\/]+)/) || path.match(/\/card\/([^\/]+)/);
+
+        if (cardMatch) {
+            // Store the card ID and redirect to index
+            sessionStorage.setItem('pendingCardId', cardMatch[1]);
+            window.location.replace('/digi-card-deeplink/?card=' + cardMatch[1]);
+        } else {
+            // Not a card link, redirect to home
+            window.location.replace('/digi-card-deeplink/');
+        }
+    </script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1E3A5F 0%, #2D5A87 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <p>Redirecting to DigiCard...</p>
+    </div>
+</body>
+</html>

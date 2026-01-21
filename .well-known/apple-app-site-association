@@ -4,7 +4,12 @@
     "details": [
       {
         "appID": "PKVNVBCDJW.com.digicard.digicard",
-        "paths": ["/c/*", "/card/*"]
+        "paths": [
+          "/digi-card-deeplink/c/*",
+          "/digi-card-deeplink/card/*",
+          "/c/*",
+          "/card/*"
+        ]
       }
     ]
   }

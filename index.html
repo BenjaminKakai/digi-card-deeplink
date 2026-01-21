@@ -68,6 +68,13 @@
             background: #34A853;
             color: white;
         }
+        .btn-open {
+            background: #D4AF37;
+            color: #1E3A5F;
+            width: 100%;
+            justify-content: center;
+            margin-top: 16px;
+        }
         .card-preview {
             background: rgba(255,255,255,0.1);
             border-radius: 16px;
@@ -82,29 +89,86 @@
             opacity: 0.7;
             margin-bottom: 8px;
         }
+        .card-info {
+            display: none;
+            background: rgba(212, 175, 55, 0.2);
+            border: 2px solid #D4AF37;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+        .card-info.show {
+            display: block;
+        }
+        .card-info h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        .card-info p {
+            font-size: 14px;
+            margin-bottom: 0;
+            opacity: 0.8;
+        }
     </style>
     <script>
         // Detect platform and redirect to app or store
         function detectPlatform() {
             const userAgent = navigator.userAgent || navigator.vendor;
             const path = window.location.pathname;
+            const urlParams = new URLSearchParams(window.location.search);
 
-            // Check if this is a card link
-            if (path.startsWith('/c/') || path.startsWith('/card/')) {
-                const cardId = path.split('/').pop();
+            // Check if this is a card link (works with GitHub Pages path /digi-card-deeplink/c/xxx)
+            // Also check query param from 404 redirect
+            let cardId = urlParams.get('card') || sessionStorage.getItem('pendingCardId');
+            sessionStorage.removeItem('pendingCardId');
 
-                // Try to open the app first
+            const cardMatch = path.match(/\/c\/([^\/]+)/) || path.match(/\/card\/([^\/]+)/);
+            if (cardMatch) {
+                cardId = cardMatch[1];
+            }
+
+            if (cardId) {
+
+                // Show card info
+                const cardInfo = document.getElementById('card-info');
+                const cardIdSpan = document.getElementById('card-id');
+                if (cardInfo && cardIdSpan) {
+                    cardInfo.classList.add('show');
+                    cardIdSpan.textContent = cardId;
+                }
+
+                // Update open button
+                const openBtn = document.getElementById('open-btn');
+                if (openBtn) {
+                    openBtn.onclick = () => openInApp(cardId);
+                    openBtn.style.display = 'inline-flex';
+                }
+
+                // Try to open the app automatically on mobile
                 if (/android/i.test(userAgent)) {
                     // Android: try intent URL
-                    window.location.href = `intent://card/${cardId}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
+                    setTimeout(() => {
+                        window.location.href = `intent://card/${cardId}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
+                    }, 500);
                 } else if (/iPad|iPhone|iPod/.test(userAgent)) {
                     // iOS: try custom URL scheme
-                    window.location.href = `digicard://card/${cardId}`;
-                    // Fallback to App Store after delay
                     setTimeout(() => {
-                        window.location.href = 'https://apps.apple.com/app/digicard';
-                    }, 2500);
+                        window.location.href = `digicard://card/${cardId}`;
+                    }, 500);
                 }
+            }
+        }
+
+        function openInApp(cardId) {
+            const userAgent = navigator.userAgent || navigator.vendor;
+
+            if (/android/i.test(userAgent)) {
+                window.location.href = `intent://card/${cardId}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
+            } else if (/iPad|iPhone|iPod/.test(userAgent)) {
+                window.location.href = `digicard://card/${cardId}`;
+            } else {
+                // Desktop - show alert
+                alert('Please open this link on your mobile device with DigiCard installed, or scan the QR code with your phone.');
             }
         }
 
@@ -116,6 +180,15 @@
     <div class="container">
         <div class="logo">💳</div>
         <h1>DigiCard</h1>
+
+        <div id="card-info" class="card-info">
+            <h2>You've received a card!</h2>
+            <p>Card ID: <strong id="card-id"></strong></p>
+            <a href="#" id="open-btn" class="btn btn-open" style="display: none;">
+                📱 Open in DigiCard App
+            </a>
+        </div>
+
         <p>The modern way to share your professional identity. Create stunning digital business cards and share them instantly.</p>
 
         <div class="buttons">
@@ -134,8 +207,8 @@
         </div>
 
         <div class="card-preview">
-            <h3>Already have the app?</h3>
-            <p style="font-size: 14px; margin-bottom: 0;">The card will open automatically if DigiCard is installed on your device.</p>
+            <h3>Don't have the app yet?</h3>
+            <p style="font-size: 14px; margin-bottom: 0;">Download DigiCard to view this card and create your own digital business cards!</p>
         </div>
     </div>
 </body>
