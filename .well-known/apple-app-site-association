@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "PKVNVBCDJW.com.digicard.digicard",
+        "paths": ["/c/*", "/card/*"]
+      }
+    ]
+  }
+}
