@@ -12,7 +12,7 @@
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #1E3A5F 0%, #2D5A87 100%);
+            background: linear-gradient(135deg, #0D0D0D 0%, #1A1A1A 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -32,12 +32,17 @@
             font-size: 36px;
             font-weight: 700;
             margin-bottom: 16px;
+            background: linear-gradient(135deg, #00D4FF, #00A8CC);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
         p {
             font-size: 18px;
             opacity: 0.9;
             margin-bottom: 32px;
             line-height: 1.6;
+            color: #B3B3B3;
         }
         .buttons {
             display: flex;
@@ -58,29 +63,60 @@
         }
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            box-shadow: 0 8px 20px rgba(0,212,255,0.3);
         }
         .btn-ios {
             background: white;
-            color: #1E3A5F;
+            color: #0D0D0D;
         }
         .btn-android {
             background: #34A853;
             color: white;
         }
         .btn-open {
-            background: #D4AF37;
-            color: #1E3A5F;
+            background: linear-gradient(135deg, #00D4FF, #00A8CC);
+            color: white;
             width: 100%;
             justify-content: center;
             margin-top: 16px;
         }
+        .link-info {
+            background: rgba(0,212,255,0.1);
+            border: 2px solid #00D4FF;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            display: none;
+        }
+        .link-info.show {
+            display: block;
+        }
+        .link-info h2 {
+            font-size: 24px;
+            margin-bottom: 8px;
+            color: white;
+        }
+        .link-info p {
+            font-size: 14px;
+            margin-bottom: 0;
+            opacity: 0.8;
+        }
+        .link-info.referral {
+            background: rgba(212, 175, 55, 0.1);
+            border-color: #D4AF37;
+        }
+        .link-info.referral .reward {
+            font-size: 32px;
+            font-weight: 700;
+            color: #D4AF37;
+            margin: 16px 0;
+        }
         .card-preview {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
             border-radius: 16px;
             padding: 24px;
             margin-top: 40px;
-            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .card-preview h3 {
             font-size: 14px;
@@ -88,92 +124,162 @@
             letter-spacing: 1px;
             opacity: 0.7;
             margin-bottom: 8px;
-        }
-        .card-info {
-            display: none;
-            background: rgba(212, 175, 55, 0.2);
-            border: 2px solid #D4AF37;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 24px;
-        }
-        .card-info.show {
-            display: block;
-        }
-        .card-info h2 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-        .card-info p {
-            font-size: 14px;
-            margin-bottom: 0;
-            opacity: 0.8;
+            color: #808080;
         }
     </style>
     <script>
-        // Detect platform and redirect to app or store
-        function detectPlatform() {
+        // Detect link type and platform, then redirect to app or store
+        function detectAndHandle() {
             const userAgent = navigator.userAgent || navigator.vendor;
             const path = window.location.pathname;
             const urlParams = new URLSearchParams(window.location.search);
 
-            // Check if this is a card link (works with GitHub Pages path /digi-card-deeplink/c/xxx)
-            // Also check query param from 404 redirect
-            let cardId = urlParams.get('card') || sessionStorage.getItem('pendingCardId');
-            sessionStorage.removeItem('pendingCardId');
+            // Check for different link types
+            let linkType = null;
+            let linkId = null;
 
-            const cardMatch = path.match(/\/c\/([^\/]+)/) || path.match(/\/card\/([^\/]+)/);
+            // 1. Check for CARD links
+            let cardMatch = path.match(/\/c\/([^\/]+)/) || path.match(/\/card\/([^\/]+)/);
             if (cardMatch) {
-                cardId = cardMatch[1];
+                linkType = 'card';
+                linkId = cardMatch[1];
+            } else if (urlParams.get('card')) {
+                linkType = 'card';
+                linkId = urlParams.get('card');
             }
 
-            if (cardId) {
-
-                // Show card info
-                const cardInfo = document.getElementById('card-info');
-                const cardIdSpan = document.getElementById('card-id');
-                if (cardInfo && cardIdSpan) {
-                    cardInfo.classList.add('show');
-                    cardIdSpan.textContent = cardId;
+            // 2. Check for INVITATION links (org invitation tokens are UUIDs with dashes)
+            if (!linkType) {
+                let inviteMatch = path.match(/\/invitation\/([^\/]+)/) || path.match(/\/invite\/([^\/]+)/);
+                if (inviteMatch) {
+                    const token = inviteMatch[1];
+                    // Invitation tokens are UUIDs (contain dashes)
+                    if (token.includes('-')) {
+                        linkType = 'invitation';
+                        linkId = token;
+                    } else {
+                        // Short code = referral
+                        linkType = 'referral';
+                        linkId = token;
+                    }
+                } else if (urlParams.get('invitation')) {
+                    linkType = 'invitation';
+                    linkId = urlParams.get('invitation');
                 }
+            }
 
-                // Update open button
-                const openBtn = document.getElementById('open-btn');
-                if (openBtn) {
-                    openBtn.onclick = () => openInApp(cardId);
-                    openBtn.style.display = 'inline-flex';
+            // 3. Check for REFERRAL links
+            if (!linkType) {
+                let refMatch = path.match(/\/ref\/([^\/]+)/) || path.match(/\/referral\/([^\/]+)/);
+                if (refMatch) {
+                    linkType = 'referral';
+                    linkId = refMatch[1];
+                } else if (urlParams.get('ref')) {
+                    linkType = 'referral';
+                    linkId = urlParams.get('ref');
+                } else if (urlParams.get('referral')) {
+                    linkType = 'referral';
+                    linkId = urlParams.get('referral');
                 }
+            }
 
-                // Try to open the app automatically on mobile
-                if (/android/i.test(userAgent)) {
-                    // Android: try intent URL
-                    setTimeout(() => {
-                        window.location.href = `intent://card/${cardId}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
-                    }, 500);
-                } else if (/iPad|iPhone|iPod/.test(userAgent)) {
-                    // iOS: try custom URL scheme
-                    setTimeout(() => {
-                        window.location.href = `digicard://card/${cardId}`;
-                    }, 500);
+            // Handle the link
+            if (linkType && linkId) {
+                showLinkInfo(linkType, linkId);
+                setupOpenButton(linkType, linkId);
+                tryOpenApp(linkType, linkId, userAgent);
+            }
+        }
+
+        function showLinkInfo(type, id) {
+            const infoDiv = document.getElementById('link-info');
+            const titleEl = document.getElementById('link-title');
+            const descEl = document.getElementById('link-desc');
+            const rewardEl = document.getElementById('link-reward');
+
+            if (!infoDiv) return;
+
+            infoDiv.className = 'link-info show';
+
+            if (type === 'card') {
+                titleEl.textContent = "You've received a card!";
+                descEl.textContent = `Card ID: ${id}`;
+                rewardEl.style.display = 'none';
+            } else if (type === 'invitation') {
+                titleEl.textContent = "Team Invitation";
+                descEl.textContent = "You've been invited to join a team on DigiCard!";
+                rewardEl.style.display = 'none';
+            } else if (type === 'referral') {
+                infoDiv.classList.add('referral');
+                titleEl.textContent = "You've Been Invited!";
+                descEl.textContent = "A friend shared DigiCard with you. Sign up and get:";
+                rewardEl.style.display = 'block';
+                rewardEl.textContent = 'KES 50 Bonus!';
+            }
+        }
+
+        function setupOpenButton(type, id) {
+            const openBtn = document.getElementById('open-btn');
+            if (openBtn) {
+                openBtn.onclick = () => openInApp(type, id);
+                openBtn.style.display = 'inline-flex';
+
+                if (type === 'referral') {
+                    openBtn.textContent = 'Claim Your Bonus';
+                } else if (type === 'invitation') {
+                    openBtn.textContent = 'Accept Invitation';
+                } else {
+                    openBtn.textContent = 'Open in DigiCard App';
                 }
             }
         }
 
-        function openInApp(cardId) {
+        function tryOpenApp(type, id, userAgent) {
+            let scheme = '';
+
+            if (type === 'card') {
+                scheme = `digicard://card/${id}`;
+            } else if (type === 'invitation') {
+                scheme = `digicard://invitation/${id}`;
+            } else if (type === 'referral') {
+                scheme = `digicard://invite/${id}`;
+            }
+
+            // Try to open the app automatically on mobile
+            if (/android/i.test(userAgent)) {
+                setTimeout(() => {
+                    window.location.href = `intent://${type}/${id}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
+                }, 500);
+            } else if (/iPad|iPhone|iPod/.test(userAgent)) {
+                setTimeout(() => {
+                    window.location.href = scheme;
+                }, 500);
+            }
+        }
+
+        function openInApp(type, id) {
             const userAgent = navigator.userAgent || navigator.vendor;
 
+            let scheme = '';
+            if (type === 'card') {
+                scheme = `digicard://card/${id}`;
+            } else if (type === 'invitation') {
+                scheme = `digicard://invitation/${id}`;
+            } else if (type === 'referral') {
+                scheme = `digicard://invite/${id}`;
+            }
+
             if (/android/i.test(userAgent)) {
-                window.location.href = `intent://card/${cardId}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
+                window.location.href = `intent://${type}/${id}#Intent;scheme=digicard;package=com.digicard.digicard;end`;
             } else if (/iPad|iPhone|iPod/.test(userAgent)) {
-                window.location.href = `digicard://card/${cardId}`;
+                window.location.href = scheme;
             } else {
-                // Desktop - show alert
-                alert('Please open this link on your mobile device with DigiCard installed, or scan the QR code with your phone.');
+                alert('Please open this link on your mobile device with DigiCard installed.');
             }
         }
 
         // Run on page load
-        window.onload = detectPlatform;
+        window.onload = detectAndHandle;
     </script>
 </head>
 <body>
@@ -181,11 +287,12 @@
         <div class="logo">💳</div>
         <h1>DigiCard</h1>
 
-        <div id="card-info" class="card-info">
-            <h2>You've received a card!</h2>
-            <p>Card ID: <strong id="card-id"></strong></p>
+        <div id="link-info" class="link-info">
+            <h2 id="link-title">Welcome!</h2>
+            <p id="link-desc"></p>
+            <div id="link-reward" class="reward" style="display: none;"></div>
             <a href="#" id="open-btn" class="btn btn-open" style="display: none;">
-                📱 Open in DigiCard App
+                Open in DigiCard App
             </a>
         </div>
 
@@ -208,7 +315,7 @@
 
         <div class="card-preview">
             <h3>Don't have the app yet?</h3>
-            <p style="font-size: 14px; margin-bottom: 0;">Download DigiCard to view this card and create your own digital business cards!</p>
+            <p style="font-size: 14px; margin-bottom: 0; color: #808080;">Download DigiCard to view this card and create your own digital business cards!</p>
         </div>
     </div>
 </body>
